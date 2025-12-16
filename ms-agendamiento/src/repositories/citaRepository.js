@@ -1,22 +1,31 @@
-const citasDB = [];
+// src/repositories/citaRepository.js
+const Cita = require('../models/citaModel');
 
 const CitaRepository = {
-    findAll: () => citasDB,
-    
-    findById: (id) => citasDB.find(c => c.id === id),
-    
-    create: (cita) => {
-        citasDB.push(cita);
-        return cita;
+    findAll: async () => {
+        return await Cita.findAll();
+    },
+
+    findById: async (id) => {
+        return await Cita.findByPk(id);
+    },
+
+    create: async (datosCita) => {
+        return await Cita.create(datosCita);
+    },
+
+    update: async (id, datosActualizados) => {
+        const cita = await Cita.findByPk(id);
+        if (!cita) return null;
+        return await cita.update(datosActualizados);
     },
     
-    update: (id, datosActualizados) => {
-        const index = citasDB.findIndex(c => c.id === id);
-        if (index !== -1) {
-            citasDB[index] = { ...citasDB[index], ...datosActualizados };
-            return citasDB[index];
-        }
-        return null;
+    // Método extra para lógica de negocio (ej. anular)
+    updateEstado: async (id, nuevoEstado) => {
+        const cita = await Cita.findByPk(id);
+        if (!cita) return null;
+        cita.estado = nuevoEstado;
+        return await cita.save();
     }
 };
 
