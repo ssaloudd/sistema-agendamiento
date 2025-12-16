@@ -1,0 +1,77 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Django stuff
+*.log
+*.pot
+*.pyc
+*.sqlite3
+db.sqlite3
+#*.pkl
+*.joblib
+
+# Migrations (puedes decidir si ignoras todas o no)
+**/migrations/
+!**/migrations/__init__.py
+
+# Media / archivos subidos
+media/
+uploads/
+
+# VSCode / IDEs
+.vscode/
+.idea/
+*.swp
+
+# Mac OS
+.DS_Store
+
+# Entornos / configuraciones personales
+.env
+.env.*
+
+# Node (si pones luego frontend aquí)
+node_modules/
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# Build / cache
+*.bak
+*.tmp
+*.log
+
+
+# Dependencias de Node
+node_modules/
+npm-debug.log
+
+# Bases de datos SQLite (No subir datos de prueba)
+*.sqlite
+*.db
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Variables de entorno (Por seguridad)
+.env
+
+# Build de producción del frontend
+client/dist/
+
+# Carpetas de cobertura de tests (si los hubiera)
+coverage/
