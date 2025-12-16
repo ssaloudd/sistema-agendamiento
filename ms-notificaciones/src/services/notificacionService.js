@@ -1,60 +1,60 @@
-// src/services/notificacionService.js
-const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const NotificacionRepository = require('../repositories/notificacionRepository');
 
 const NotificacionService = {
-    obtenerTodas: () => {
-        return NotificacionRepository.findAll();
+    obtenerTodas: async () => {
+        return await NotificacionRepository.findAll();
     },
 
     procesarEvento: async (evento) => {
-        // Solo nos interesa el evento CitaCreada por ahora
         if (evento.tipo === 'CitaCreada') {
             await crearNotificacionDeCita(evento.datos);
+        } else if (evento.tipo === 'CitaAnulada') {
+            // Lógica extra: Notificar anulación
+            await crearNotificacionGenerica("Cita Anulada", `La cita ${evento.datos.id} ha sido anulada.`);
         }
     }
 };
 
-// Función auxiliar privada para manejar la lógica específica de la cita
 async function crearNotificacionDeCita(datosCita) {
     const { pacienteId, fecha, id: citaId } = datosCita;
-    
-    let destinatario = "desconocido@correo.com";
-    let canal = "EMAIL";
+    let destinatario = "admin@hospital.com"; // Fallback
 
-    // 1. Comunicación Síncrona: Consultar datos del paciente (Email/Teléfono) 
+    // 1. Obtener datos contacto (Consulta Síncrona)
     try {
-        // Obtenemos todos los pacientes y filtramos (ya que no creamos endpoint por ID específico aún)
+        // En producción idealmente usaríamos un endpoint GET /pacientes/:id
         const response = await axios.get('http://localhost:4000/pacientes');
-        const pacientes = response.data;
-        const pacienteEncontrado = pacientes.find(p => p.id === pacienteId);
-        
-        if (pacienteEncontrado) {
-            destinatario = pacienteEncontrado.email;
-        }
+        const paciente = response.data.find(p => p.id === pacienteId);
+        if (paciente) destinatario = paciente.email;
     } catch (error) {
-        console.error("Error consultando MS Pacientes:", error.message);
+        console.error("Error contactando MS Pacientes", error.message);
     }
 
-    // 2. Crear Objeto Notificación con TODOS los atributos 
-    const nuevaNotificacion = {
-        id: uuidv4(),
-        destinatario: destinatario,
-        asunto: "Confirmación de Cita Médica",
-        cuerpoMensaje: `Su cita ha sido agendada exitosamente para la fecha: ${fecha}. ID Cita: ${citaId}`,
-        fechaCreacion: new Date().toISOString(),
-        fechaEnvio: new Date().toISOString(), // Simulamos envío inmediato
+    // 2. Persistir
+    const notificacion = await NotificacionRepository.create({
+        destinatario,
+        asunto: "Confirmación de Cita",
+        cuerpoMensaje: `Su cita (ID: ${citaId}) ha sido agendada para: ${new Date(fecha).toLocaleString()}`,
+        fechaCreacion: new Date(),
+        fechaEnvio: new Date(),
         intentos: 1,
-        estado: 'ENVIADO', // Enum [cite: 285]
-        canal: canal       // Enum [cite: 279]
-    };
+        estado: 'ENVIADO',
+        canal: 'EMAIL'
+    });
 
-    // 3. Persistencia
-    NotificacionRepository.create(nuevaNotificacion);
-    
-    // 4. Simulación de envío (Output en consola)
-    console.log(`[SIMULACION EMAIL] Enviando a: ${destinatario} | Asunto: ${nuevaNotificacion.asunto}`);
+    console.log(`[NOTIFICACION DB] Guardada para: ${destinatario}`);
+    return notificacion;
+}
+
+async function crearNotificacionGenerica(asunto, mensaje) {
+    await NotificacionRepository.create({
+        destinatario: "sistema@hospital.com",
+        asunto,
+        cuerpoMensaje: mensaje,
+        fechaEnvio: new Date(),
+        estado: 'ENVIADO',
+        canal: 'SMS'
+    });
 }
 
 module.exports = NotificacionService;

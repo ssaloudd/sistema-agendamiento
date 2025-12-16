@@ -4,20 +4,22 @@
 const NotificacionService = require('../services/notificacionService');
 
 const NotificacionController = {
-    getNotificaciones: (req, res) => {
-        const notificaciones = NotificacionService.obtenerTodas();
-        res.json(notificaciones);
+    getNotificaciones: async (req, res) => {
+        try {
+            const lista = await NotificacionService.obtenerTodas();
+            res.json(lista);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
     },
 
-    // Este es el Webhook que llama el Event Bus
     recibirEvento: async (req, res) => {
         try {
-            const evento = req.body;
-            // No esperamos a que termine el proceso para responder al Bus (Fire and Forget)
-            NotificacionService.procesarEvento(evento);
-            res.send({ status: 'Evento recibido' });
+            // "Fire and forget" para no bloquear al Bus, pero procesando
+            NotificacionService.procesarEvento(req.body);
+            res.send({ status: 'Procesando' });
         } catch (error) {
-            console.error("Error procesando evento:", error);
+            console.error(error);
             res.status(500).send({ error: "Error interno" });
         }
     }
