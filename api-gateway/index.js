@@ -31,6 +31,11 @@ app.use('/notificaciones', createProxyMiddleware({
     changeOrigin: true 
 }));
 
+app.use('/turnos', createProxyMiddleware({
+    target: 'http://localhost:4001',
+    changeOrigin: true
+}));
+
 app.listen(4000, () => {
   console.log('API Gateway corriendo en puerto 4000');
 });

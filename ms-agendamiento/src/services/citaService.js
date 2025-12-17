@@ -50,10 +50,14 @@ const CitaService = {
                     id: nuevaCita.id,
                     pacienteId,
                     medicoId,
+                    turnoId: turnoId,
                     fecha: new Date().toISOString()
                 }
             });
-        } catch (error) { console.log('Bus no responde'); }
+            console.log("Evento CitaCreada enviado con turnoId:", turnoId); // Log para depurar
+        } catch (error) { 
+            console.log('Bus no responde'); 
+        }
 
         return nuevaCita;
     },
