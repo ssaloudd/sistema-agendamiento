@@ -32,7 +32,17 @@ const CitaController = {
     recibirEvento: (req, res) => {
         console.log(`Evento en Agendamiento: ${req.body.tipo}`);
         res.send({});
-    }
+    },
+
+    reprogramarCita: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const cita = await CitaService.reprogramarCita(id, req.body);
+            res.json(cita);
+        } catch (error) {
+            res.status(400).json({ error: error.message });
+        }
+    },
 };
 
 module.exports = CitaController;

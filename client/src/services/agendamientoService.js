@@ -15,6 +15,12 @@ const AgendamientoService = {
   anular: async (id) => {
     const response = await api.put(`/agendamiento/${id}/anular`);
     return response.data;
+  },
+
+  reprogramar: async (id, datos) => {
+    // El backend espera: { nuevoTurnoId, nuevaFecha, nuevaHora }
+    const response = await api.put(`/agendamiento/${id}/reprogramar`, datos);
+    return response.data;
   }
 };
 

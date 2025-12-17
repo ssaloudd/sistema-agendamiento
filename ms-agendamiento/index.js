@@ -12,6 +12,7 @@ app.get('/', CitaController.getCitas);
 app.post('/', CitaController.agendarCita);
 app.put('/:id/anular', CitaController.anularCita); // Endpoint específico para cambio de estado
 app.post('/events', CitaController.recibirEvento);
+app.put('/:id/reprogramar', CitaController.reprogramarCita);
 
 const PORT = 4003;
 
