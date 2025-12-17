@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 4000;
 
 app.use('/pacientes', createProxyMiddleware({ target: PACIENTES_URL, changeOrigin: true }));
 app.use('/medicos', createProxyMiddleware({ target: MEDICOS_URL, changeOrigin: true }));
-app.use('/turnos', createProxyMiddleware({ target: MEDICOS_URL, changeOrigin: true })); // Para el detalle de turnos
+//app.use('/turnos', createProxyMiddleware({ target: MEDICOS_URL, changeOrigin: true })); // Para el detalle de turnos
 app.use('/agendamiento', createProxyMiddleware({ target: AGENDAMIENTO_URL, changeOrigin: true }));
 app.use('/notificaciones', createProxyMiddleware({ target: NOTIFICACIONES_URL, changeOrigin: true }));
 

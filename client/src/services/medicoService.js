@@ -38,7 +38,7 @@ const MedicoService = {
 
   // Obtener detalle de un turno específico
   getTurnoById: async (id) => {
-    const response = await api.get(`/turnos/${id}`); // Esto irá al Gateway -> ms-medicos
+    const response = await api.get(`/medicos/turnos/${id}`); // Esto irá al Gateway -> ms-medicos
     return response.data;
   }
 };
