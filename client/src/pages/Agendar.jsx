@@ -2,40 +2,83 @@ import { useState, useEffect } from 'react';
 import AgendamientoService from '../services/agendamientoService';
 import PacienteService from '../services/pacienteService';
 import MedicoService from '../services/medicoService';
+import TurnoDisplay from '../components/TurnoDisplay';
 
 const Agendar = () => {
-  // Listas para los "Select"
+  // --- ESTADOS ---
   const [pacientes, setPacientes] = useState([]);
   const [medicos, setMedicos] = useState([]);
   const [citas, setCitas] = useState([]);
+  
+  // Estado para manejo de turnos visuales
+  const [turnosDisponibles, setTurnosDisponibles] = useState([]);
+  const [fechaSeleccionada, setFechaSeleccionada] = useState('');
+  const [turnoSeleccionadoObj, setTurnoSeleccionadoObj] = useState(null); // Para mostrar hora en resumen
+  const [loadingTurnos, setLoadingTurnos] = useState(false);
 
-  // Formulario
   const [formData, setFormData] = useState({
     pacienteId: '',
     medicoId: '',
-    turnoId: '', // En un sistema real, esto vendría de seleccionar un hueco en un calendario
+    turnoId: '',
     motivoConsulta: ''
   });
 
+  // Carga inicial de catálogos
   useEffect(() => {
     cargarDatosIniciales();
   }, []);
 
+  // Efecto: Cuando cambia Médico o Fecha, buscamos turnos automáticamente
+  useEffect(() => {
+    if (formData.medicoId && fechaSeleccionada) {
+      cargarTurnos(formData.medicoId, fechaSeleccionada);
+    } else {
+      setTurnosDisponibles([]);
+    }
+  }, [formData.medicoId, fechaSeleccionada]);
+
   const cargarDatosIniciales = async () => {
     try {
-      // Cargar todo en paralelo para rapidez
       const [pacientesData, medicosData, citasData] = await Promise.all([
         PacienteService.getAll(),
         MedicoService.getAll(),
         AgendamientoService.getAll()
       ]);
-
       setPacientes(pacientesData);
       setMedicos(medicosData);
       setCitas(citasData);
     } catch (error) {
       console.error("Error cargando datos:", error);
-      alert("Error cargando listas necesarias. Verifique que todos los microservicios estén activos.");
+      alert("Error conectando con los servicios.");
+    }
+  };
+
+  const cargarTurnos = async (medicoId, fecha) => {
+    setLoadingTurnos(true);
+    setTurnoSeleccionadoObj(null); // Resetear selección
+    setFormData(prev => ({ ...prev, turnoId: '' })); // Limpiar ID turno
+    try {
+      const turnos = await MedicoService.getTurnosDisponibles(medicoId, fecha);
+      setTurnosDisponibles(turnos);
+    } catch (error) {
+      console.error("Error cargando turnos:", error);
+    } finally {
+      setLoadingTurnos(false);
+    }
+  };
+
+  // Función para poblar la agenda desde el botón (Facilita pruebas)
+  const handleGenerarAgenda = async () => {
+    if (!formData.medicoId || !fechaSeleccionada) return;
+    try {
+      setLoadingTurnos(true);
+      await MedicoService.generarAgenda(formData.medicoId, fechaSeleccionada);
+      // Recargar inmediatamente
+      await cargarTurnos(formData.medicoId, fechaSeleccionada);
+    } catch (error) {
+      alert("Error generando agenda: " + error.message);
+    } finally {
+      setLoadingTurnos(false);
     }
   };
 
@@ -46,13 +89,24 @@ const Agendar = () => {
     });
   };
 
+  const handleSeleccionarTurno = (turno) => {
+    setFormData({ ...formData, turnoId: turno.id });
+    setTurnoSeleccionadoObj(turno);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Necesitamos enviar el nombre del médico también (redundancia requerida por backend)
+      // Validaciones extra
+      if (!formData.turnoId) {
+        alert("Por favor seleccione un horario disponible.");
+        return;
+      }
+
       const medicoSeleccionado = medicos.find(m => m.id === formData.medicoId);
       const medicoNombre = medicoSeleccionado ? `${medicoSeleccionado.nombres} ${medicoSeleccionado.apellidos}` : 'Desconocido';
 
+      // Enviamos el ID del turno REAL (UUID)
       await AgendamientoService.create({
         ...formData,
         medicoNombre
@@ -60,10 +114,15 @@ const Agendar = () => {
 
       alert('Cita agendada con éxito');
       
-      // Recargar lista de citas y limpiar form
+      // Actualizar todo
       const nuevasCitas = await AgendamientoService.getAll();
       setCitas(nuevasCitas);
-      setFormData({ pacienteId: '', medicoId: '', turnoId: '', motivoConsulta: '' });
+      // Recargar turnos (el que seleccioné debería desaparecer o salir ocupado)
+      cargarTurnos(formData.medicoId, fechaSeleccionada);
+      
+      // Limpiar form parcial
+      setFormData(prev => ({ ...prev, pacienteId: '', motivoConsulta: '', turnoId: '' }));
+      setTurnoSeleccionadoObj(null);
 
     } catch (error) {
       console.error(error);
@@ -76,19 +135,21 @@ const Agendar = () => {
       try {
         await AgendamientoService.anular(id);
         alert('Cita anulada');
-        // Actualizar UI
         const nuevasCitas = await AgendamientoService.getAll();
         setCitas(nuevasCitas);
+        // Si anulamos una cita de hoy, recargamos los turnos para ver que se libera
+        if (formData.medicoId && fechaSeleccionada) {
+            cargarTurnos(formData.medicoId, fechaSeleccionada);
+        }
       } catch (error) {
         alert('Error al anular cita');
       }
     }
   };
 
-  // Función auxiliar para obtener nombre de paciente por ID (para mostrar en la tabla)
   const getNombrePaciente = (id) => {
     const p = pacientes.find(pac => pac.id === id);
-    return p ? `${p.nombres} ${p.apellidos}` : id;
+    return p ? `${p.nombres} ${p.apellidos}` : 'Desconocido';
   };
 
   return (
@@ -97,14 +158,14 @@ const Agendar = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* --- COLUMNA IZQUIERDA: FORMULARIO --- */}
+        {/* --- COLUMNA IZQUIERDA: FORMULARIO WIZARD --- */}
         <div className="bg-white p-6 rounded-lg shadow-md h-fit">
           <h3 className="text-lg font-semibold mb-4 text-purple-600 border-b pb-2">Nueva Cita</h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             
-            {/* Selección de Paciente */}
+            {/* 1. Selección de Paciente */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Paciente</label>
+              <label className="block text-sm font-medium text-gray-700">1. Paciente</label>
               <select 
                 name="pacienteId" 
                 value={formData.pacienteId} 
@@ -114,67 +175,120 @@ const Agendar = () => {
               >
                 <option value="">-- Seleccione Paciente --</option>
                 {pacientes.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.cedula} - {p.nombres} {p.apellidos}
-                  </option>
+                  <option key={p.id} value={p.id}>{p.cedula} - {p.nombres} {p.apellidos}</option>
                 ))}
               </select>
             </div>
 
-            {/* Selección de Médico */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Médico</label>
-              <select 
-                name="medicoId" 
-                value={formData.medicoId} 
-                onChange={handleChange} 
-                required
-                className="mt-1 p-2 w-full border rounded focus:ring-purple-500 focus:border-purple-500"
-              >
-                <option value="">-- Seleccione Médico --</option>
-                {medicos.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.especialidades?.[0] || 'Gral'} - {m.nombres} {m.apellidos}
-                  </option>
-                ))}
-              </select>
+            {/* 2. Selección de Médico y Fecha */}
+            <div className="grid grid-cols-2 gap-2">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">2. Médico</label>
+                    <select 
+                        name="medicoId" 
+                        value={formData.medicoId} 
+                        onChange={handleChange} 
+                        required
+                        className="mt-1 p-2 w-full border rounded text-sm"
+                    >
+                        <option value="">-- Médico --</option>
+                        {medicos.map(m => (
+                        <option key={m.id} value={m.id}>{m.nombres} {m.apellidos}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">3. Fecha</label>
+                    <input 
+                        type="date" 
+                        value={fechaSeleccionada}
+                        onChange={(e) => setFechaSeleccionada(e.target.value)}
+                        required
+                        className="mt-1 p-2 w-full border rounded text-sm"
+                    />
+                </div>
             </div>
 
-            {/* Turno (Simulado como texto por ahora) */}
+            {/* 3. Selección de Turno (Slot) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">ID Turno / Horario</label>
-              <input 
-                type="text" 
-                name="turnoId" 
-                value={formData.turnoId} 
-                onChange={handleChange} 
-                placeholder="Ej: TURNO-10:00AM"
-                required
-                className="mt-1 p-2 w-full border rounded"
-              />
-              <p className="text-xs text-gray-400 mt-1">* En producción, esto sería un selector de calendario</p>
+                <label className="block text-sm font-medium text-gray-700 mb-2">4. Turno Disponible</label>
+                
+                {/* Estado Loading */}
+                {loadingTurnos && <p className="text-xs text-gray-500 animate-pulse">Buscando disponibilidad...</p>}
+
+                {/* Grid de Botones */}
+                {!loadingTurnos && turnosDisponibles.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto p-1 border rounded bg-gray-50">
+                        {turnosDisponibles.map(turno => (
+                            <button
+                                key={turno.id}
+                                type="button"
+                                onClick={() => handleSeleccionarTurno(turno)}
+                                className={`text-xs py-2 px-1 rounded border transition font-medium
+                                    ${formData.turnoId === turno.id 
+                                        ? 'bg-purple-600 text-white border-purple-600 shadow-md' 
+                                        : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                                    }`}
+                            >
+                                {turno.horaInicio.slice(0, 5)}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Estado Vacío / Botón Mágico Generar */}
+                {!loadingTurnos && turnosDisponibles.length === 0 && formData.medicoId && fechaSeleccionada && (
+                    <div className="text-center p-3 border-2 border-dashed border-gray-300 rounded bg-gray-50">
+                        <p className="text-xs text-gray-500 mb-2">No hay agenda abierta.</p>
+                        <button 
+                            type="button"
+                            onClick={handleGenerarAgenda}
+                            className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 font-bold"
+                        >
+                            + Generar Agenda (Demo)
+                        </button>
+                    </div>
+                )}
+                
+                {(!formData.medicoId || !fechaSeleccionada) && (
+                    <p className="text-xs text-gray-400 italic">Seleccione médico y fecha para ver horarios.</p>
+                )}
             </div>
 
-            {/* Motivo */}
+            {/* Resumen de Selección */}
+            {turnoSeleccionadoObj && (
+                <div className="bg-purple-50 p-2 rounded border border-purple-100 text-sm text-purple-800">
+                    <strong>Resumen:</strong> {turnoSeleccionadoObj.horaInicio} - {turnoSeleccionadoObj.horaFin}
+                </div>
+            )}
+
+            {/* 5. Motivo */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Motivo de Consulta</label>
+              <label className="block text-sm font-medium text-gray-700">5. Motivo</label>
               <textarea 
                 name="motivoConsulta" 
                 value={formData.motivoConsulta} 
                 onChange={handleChange} 
                 required
-                rows="3"
-                className="mt-1 p-2 w-full border rounded"
+                rows="2"
+                className="mt-1 p-2 w-full border rounded text-sm"
               ></textarea>
             </div>
 
-            <button type="submit" className="w-full bg-purple-600 text-white font-bold py-2 px-4 rounded hover:bg-purple-700 transition">
+            <button 
+                type="submit" 
+                disabled={!formData.turnoId}
+                className={`w-full font-bold py-2 px-4 rounded transition
+                    ${formData.turnoId 
+                        ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg' 
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+            >
               Confirmar Agendamiento
             </button>
           </form>
         </div>
 
-        {/* --- COLUMNA DERECHA: LISTADO DE CITAS --- */}
+        {/* --- COLUMNA DERECHA: LISTADO --- */}
         <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-lg font-semibold mb-4 text-gray-700 border-b pb-2">Citas Programadas</h3>
           
@@ -220,7 +334,7 @@ const Agendar = () => {
                 {citas.length === 0 && (
                   <tr>
                     <td colSpan="5" className="text-center py-8 text-gray-400">
-                      No hay citas registradas en el sistema.
+                      No hay citas registradas.
                     </td>
                   </tr>
                 )}
@@ -228,7 +342,6 @@ const Agendar = () => {
             </table>
           </div>
         </div>
-
       </div>
     </div>
   );

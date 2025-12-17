@@ -18,6 +18,13 @@ app.delete('/:id', MedicoController.eliminarMedico);
 app.get('/:id/verificar-disponibilidad', MedicoController.verificarDisponibilidad);
 app.post('/events', MedicoController.recibirEvento);
 
+// RUTAS DE TURNOS
+app.post('/:id/agenda', MedicoController.generarAgenda); // Generar slots
+app.get('/:id/turnos', MedicoController.getTurnosDisponibles); // Consultar slots
+
+// CONSULTAR UN TURNO ESPECÍFICO
+app.get('/turnos/:id', MedicoController.getTurnoDetalle);
+
 const PORT = 4001;
 
 sequelize.sync({ force: false }).then(() => {
