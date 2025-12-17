@@ -2,6 +2,7 @@
 
 const axios = require('axios');
 const PacienteRepository = require('../repositories/pacienteRepository');
+const EVENT_BUS = process.env.EVENT_BUS_URL || 'http://localhost:4005';
 
 const PacienteService = {
     obtenerTodos: async () => {
@@ -31,7 +32,7 @@ const PacienteService = {
 
         // Evento al Bus
         try {
-            await axios.post('http://localhost:4005/events', {
+            await axios.post(`${EVENT_BUS}/events`, {
                 tipo: 'PacienteCreado',
                 datos: pacienteCreado
             });

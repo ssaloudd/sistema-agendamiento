@@ -1,6 +1,8 @@
 const axios = require('axios');
 const NotificacionRepository = require('../repositories/notificacionRepository');
 
+const GATEWAY = process.env.GATEWAY_URL || 'http://localhost:4000';
+
 const NotificacionService = {
     obtenerTodas: async () => {
         return await NotificacionRepository.findAll();
@@ -23,7 +25,7 @@ async function crearNotificacionDeCita(datosCita) {
     // 1. Obtener datos contacto (Consulta Síncrona)
     try {
         // En producción idealmente usaríamos un endpoint GET /pacientes/:id
-        const response = await axios.get('http://localhost:4000/pacientes');
+        const response = await axios.get(`${GATEWAY}/pacientes`);
         const paciente = response.data.find(p => p.id === pacienteId);
         if (paciente) destinatario = paciente.email;
     } catch (error) {

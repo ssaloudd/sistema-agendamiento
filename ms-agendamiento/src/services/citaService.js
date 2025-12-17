@@ -4,6 +4,10 @@
 const axios = require('axios');
 const CitaRepository = require('../repositories/citaRepository');
 
+// Variables de entorno
+const GATEWAY = process.env.GATEWAY_URL || 'http://localhost:4000';
+const EVENT_BUS = process.env.EVENT_BUS_URL || 'http://localhost:4005';
+
 const CitaService = {
     obtenerTodas: async () => {
         return await CitaRepository.findAll();
@@ -19,10 +23,10 @@ const CitaService = {
         // 1. ORQUESTACIÓN: Validaciones Externas
         try {
             // Validar Paciente
-            await axios.get(`http://localhost:4000/pacientes`); 
+            await axios.get(`${GATEWAY}/pacientes`); 
             
             // Validar Disponibilidad Médico
-            const respMedico = await axios.get(`http://localhost:4000/medicos/${medicoId}/verificar-disponibilidad`);
+            const respMedico = await axios.get(`${GATEWAY}/medicos/${medicoId}/verificar-disponibilidad`);
             if (!respMedico.data.disponible) {
                 throw new Error("El médico no está disponible");
             }
@@ -44,7 +48,7 @@ const CitaService = {
 
         // 3. Evento
         try {
-            await axios.post('http://localhost:4005/events', {
+            await axios.post(`${EVENT_BUS}/events`, {
                 tipo: 'CitaCreada',
                 datos: {
                     id: nuevaCita.id,
@@ -68,7 +72,7 @@ const CitaService = {
 
         // Evento de Anulación
         try {
-             await axios.post('http://localhost:4005/events', {
+             await axios.post(`${EVENT_BUS}/events`, {
                 tipo: 'CitaAnulada',
                 datos: { id: cita.id }
             });

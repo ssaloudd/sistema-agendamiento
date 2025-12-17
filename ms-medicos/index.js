@@ -1,4 +1,4 @@
-// ms-medicos/index.js
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const sequelize = require('./src/config/database');
@@ -25,7 +25,7 @@ app.get('/:id/turnos', MedicoController.getTurnosDisponibles); // Consultar slot
 // CONSULTAR UN TURNO ESPECÍFICO
 app.get('/turnos/:id', MedicoController.getTurnoDetalle);
 
-const PORT = 4001;
+const PORT = process.env.PORT || 4001;
 
 sequelize.sync({ force: false }).then(() => {
     console.log('Base de datos Médicos SQLite sincronizada');
