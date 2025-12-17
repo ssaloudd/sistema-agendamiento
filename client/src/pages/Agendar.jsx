@@ -361,8 +361,9 @@ const Agendar = () => {
                 {citas.map((c) => (
                   <tr key={c.id} className="border-b hover:bg-gray-50 text-sm">
                     <td className="px-4 py-3">
-                      <TurnoDisplay turnoId={c.turnoId} />
-                    </td>
+                      <td className="px-4 py-3">
+                        <TurnoDisplay turnoId={c.turnoId} />
+                      </td>
                     </td>
                     <td className="px-4 py-3">{getNombrePaciente(c.pacienteId)}</td>
                     <td className="px-4 py-3">{c.medicoNombre}</td>
