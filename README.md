@@ -21,6 +21,8 @@ cd sistema-agendamiento
 El sistema consta de 6 componentes de backend independientes. Es necesario instalar las dependencias en cada uno.
 
 ###     1. Estructura de Puertos
+| Servicio           | Puerto  | Descripción                    |
+|:-------------------:|:--------:|:--------------------------------:|
 | API Gateway        |   4000	|Punto de entrada único         |
 | Event Bus          |   4005	|Broker de mensajería asíncrona |
 | MS Médicos	     |   4001	|Gestión de médicos y turnos    |
