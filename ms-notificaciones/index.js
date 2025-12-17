@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const sequelize = require('./src/config/database');
@@ -10,7 +11,7 @@ app.use(cors());
 app.get('/', NotificacionController.getNotificaciones);
 app.post('/events', NotificacionController.recibirEvento);
 
-const PORT = 4004;
+const PORT = process.env.PORT || 4004;
 
 sequelize.sync({ force: false }).then(() => {
     console.log('DB Notificaciones SQLite sincronizada');

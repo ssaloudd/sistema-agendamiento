@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const sequelize = require('./src/config/database');
@@ -14,7 +15,7 @@ app.put('/:id/anular', CitaController.anularCita); // Endpoint específico para 
 app.post('/events', CitaController.recibirEvento);
 app.put('/:id/reprogramar', CitaController.reprogramarCita);
 
-const PORT = 4003;
+const PORT = process.env.PORT || 4003;
 
 sequelize.sync({ force: false }).then(() => {
     console.log('Base de datos Citas SQLite sincronizada');

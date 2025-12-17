@@ -1,41 +1,24 @@
-// api-gateway/index.js
+require('dotenv').config();
 const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const cors = require('cors');
 
 const app = express();
-app.use(cors()); // Permite que el Frontend (React) haga peticiones aquí
+app.use(cors());
 
-// Definición de Rutas Proxy
-// Si llega una petición a localhost:4000/medicos/* -> Redirige a localhost:4001
-app.use('/medicos', createProxyMiddleware({ 
-    target: 'http://localhost:4001', 
-    changeOrigin: true 
-}));
+// Usar variables de entorno
+const PACIENTES_URL = process.env.MS_PACIENTES_URL || 'http://localhost:4002';
+const MEDICOS_URL = process.env.MS_MEDICOS_URL || 'http://localhost:4001';
+const AGENDAMIENTO_URL = process.env.MS_AGENDAMIENTO_URL || 'http://localhost:4003';
+const NOTIFICACIONES_URL = process.env.MS_NOTIFICACIONES_URL || 'http://localhost:4004';
+const PORT = process.env.PORT || 4000;
 
-// Si llega a /pacientes/* -> Redirige a localhost:4002
-app.use('/pacientes', createProxyMiddleware({ 
-    target: 'http://localhost:4002', 
-    changeOrigin: true 
-}));
+app.use('/pacientes', createProxyMiddleware({ target: PACIENTES_URL, changeOrigin: true }));
+app.use('/medicos', createProxyMiddleware({ target: MEDICOS_URL, changeOrigin: true }));
+//app.use('/turnos', createProxyMiddleware({ target: MEDICOS_URL, changeOrigin: true })); // Para el detalle de turnos
+app.use('/agendamiento', createProxyMiddleware({ target: AGENDAMIENTO_URL, changeOrigin: true }));
+app.use('/notificaciones', createProxyMiddleware({ target: NOTIFICACIONES_URL, changeOrigin: true }));
 
-// Si llega a /agendamiento/* -> Redirige a localhost:4003
-app.use('/agendamiento', createProxyMiddleware({ 
-    target: 'http://localhost:4003', 
-    changeOrigin: true 
-}));
-
-// Si llega a /notificaciones/* -> Redirige a localhost:4004
-app.use('/notificaciones', createProxyMiddleware({ 
-    target: 'http://localhost:4004', 
-    changeOrigin: true 
-}));
-
-app.use('/turnos', createProxyMiddleware({
-    target: 'http://localhost:4001',
-    changeOrigin: true
-}));
-
-app.listen(4000, () => {
-  console.log('API Gateway corriendo en puerto 4000');
+app.listen(PORT, () => {
+    console.log(`API Gateway corriendo en puerto ${PORT}`);
 });

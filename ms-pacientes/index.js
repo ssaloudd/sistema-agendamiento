@@ -1,5 +1,6 @@
 // Solo configura el servidor y las rutas.
 
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const sequelize = require('./src/config/database'); // Importar conexión
@@ -17,7 +18,7 @@ app.delete('/:id', PacienteController.eliminarPaciente); // Nueva Ruta Delete
 
 app.post('/events', PacienteController.recibirEvento);
 
-const PORT = 4002;
+const PORT = process.env.PORT || 4002;
 
 // Sincronizar Base de Datos y Arrancar Servidor
 // force: false asegura que NO borre los datos cada vez que reinicias

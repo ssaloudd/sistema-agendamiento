@@ -361,11 +361,7 @@ const Agendar = () => {
                 {citas.map((c) => (
                   <tr key={c.id} className="border-b hover:bg-gray-50 text-sm">
                     <td className="px-4 py-3">
-                      {/* USO DEL COMPONENTE TurnoDisplay PARA MOSTRAR HORA REAL */}
-                      <td className="px-4 py-3">
-                      {/* USO DEL COMPONENTE TurnoDisplay PARA MOSTRAR HORA REAL */}
-                      <div className="font-bold">{c.turnoId}</div>
-                      <div className="text-xs text-gray-500">{new Date(c.fechaCreacion).toLocaleDateString()}</div>
+                      <TurnoDisplay turnoId={c.turnoId} />
                     </td>
                     </td>
                     <td className="px-4 py-3">{getNombrePaciente(c.pacienteId)}</td>

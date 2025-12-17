@@ -3,6 +3,8 @@ const MedicoRepository = require('../repositories/medicoRepository');
 const TurnoRepository = require('../repositories/turnoRepository');
 const { v4: uuidv4 } = require('uuid');
 
+const EVENT_BUS = process.env.EVENT_BUS_URL || 'http://localhost:4005';
+
 const MedicoService = {
     obtenerTodos: async () => {
         return await MedicoRepository.findAll();
@@ -30,7 +32,7 @@ const MedicoService = {
 
         // Evento al Bus
         try {
-            await axios.post('http://localhost:4005/events', {
+            await axios.post(`${EVENT_BUS}/events`, {
                 tipo: 'MedicoCreado',
                 datos: {
                     id: medicoCreado.id,
