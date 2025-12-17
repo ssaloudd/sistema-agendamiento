@@ -4,6 +4,7 @@ import PacienteService from '../services/pacienteService';
 import MedicoService from '../services/medicoService';
 import TurnoDisplay from '../components/TurnoDisplay';
 
+
 const Agendar = () => {
   // --- ESTADOS ---
   const [pacientes, setPacientes] = useState([]);
@@ -11,6 +12,7 @@ const Agendar = () => {
   const [citas, setCitas] = useState([]);
   
   // Estado para manejo de turnos visuales
+  const [editingId, setEditingId] = useState(null);
   const [turnosDisponibles, setTurnosDisponibles] = useState([]);
   const [fechaSeleccionada, setFechaSeleccionada] = useState('');
   const [turnoSeleccionadoObj, setTurnoSeleccionadoObj] = useState(null); // Para mostrar hora en resumen
@@ -97,36 +99,51 @@ const Agendar = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Validaciones extra
       if (!formData.turnoId) {
         alert("Por favor seleccione un horario disponible.");
         return;
       }
 
+      // Obtener hora y nombre (lógica visual)
+      const turnoActual = turnosDisponibles.find(t => t.id === formData.turnoId);
+      const horaInicio = turnoActual ? turnoActual.horaInicio.slice(0, 5) : '00:00';
+      
       const medicoSeleccionado = medicos.find(m => m.id === formData.medicoId);
       const medicoNombre = medicoSeleccionado ? `${medicoSeleccionado.nombres} ${medicoSeleccionado.apellidos}` : 'Desconocido';
 
-      // Enviamos el ID del turno REAL (UUID)
-      await AgendamientoService.create({
-        ...formData,
-        medicoNombre
-      });
+      if (editingId) {
+        // --- MODO REPROGRAMAR ---
+        // Preparamos el payload específico que espera el Backend para reprogramar
+        await AgendamientoService.reprogramar(editingId, {
+            nuevoTurnoId: formData.turnoId,
+            nuevaFecha: fechaSeleccionada,
+            nuevaHora: horaInicio
+        });
+        alert('Cita reprogramada con éxito');
+        setEditingId(null); // Salir de modo edición
 
-      alert('Cita agendada con éxito');
+      } else {
+        // --- MODO CREAR ---
+        await AgendamientoService.create({
+          ...formData,
+          medicoNombre,
+          fechaCita: fechaSeleccionada,
+          horaInicio: horaInicio
+        });
+        alert('Cita agendada con éxito');
+      }
       
-      // Actualizar todo
+      // Limpieza común
       const nuevasCitas = await AgendamientoService.getAll();
       setCitas(nuevasCitas);
-      // Recargar turnos (el que seleccioné debería desaparecer o salir ocupado)
       cargarTurnos(formData.medicoId, fechaSeleccionada);
       
-      // Limpiar form parcial
       setFormData(prev => ({ ...prev, pacienteId: '', motivoConsulta: '', turnoId: '' }));
       setTurnoSeleccionadoObj(null);
 
     } catch (error) {
       console.error(error);
-      alert('Error al agendar: ' + (error.response?.data?.error || error.message));
+      alert('Error: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -152,6 +169,28 @@ const Agendar = () => {
     return p ? `${p.nombres} ${p.apellidos}` : 'Desconocido';
   };
 
+  const handleCargarReprogramacion = (cita) => {
+    setEditingId(cita.id);
+    
+    // Llenamos el formulario con los datos básicos
+    // Nota: No llenamos turnoId ni fecha, porque la idea es que ELIJA UNA NUEVA
+    setFormData({
+      pacienteId: cita.pacienteId,
+      medicoId: cita.medicoId,
+      turnoId: '', // Debe seleccionar uno nuevo
+      motivoConsulta: cita.motivoConsulta || '' // Mantenemos el motivo o lo dejamos vacío
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelarEdicion = () => {
+    setEditingId(null);
+    setFormData({ pacienteId: '', medicoId: '', turnoId: '', motivoConsulta: '' });
+    setFechaSeleccionada('');
+    setTurnosDisponibles([]);
+    setTurnoSeleccionadoObj(null);
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Agendamiento de Citas</h2>
@@ -159,8 +198,24 @@ const Agendar = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* --- COLUMNA IZQUIERDA: FORMULARIO WIZARD --- */}
-        <div className="bg-white p-6 rounded-lg shadow-md h-fit">
-          <h3 className="text-lg font-semibold mb-4 text-purple-600 border-b pb-2">Nueva Cita</h3>
+        <div className={`p-6 rounded-lg shadow-md h-fit transition-colors ${editingId ? 'bg-orange-50 border border-orange-200' : 'bg-white'}`}>
+          
+          {/* Cabecera dinámica: Crear vs Reprogramar */}
+          <div className="flex justify-between items-center mb-4 border-b pb-2">
+            <h3 className={`text-lg font-semibold ${editingId ? 'text-orange-600' : 'text-purple-600'}`}>
+                {editingId ? 'Reprogramar Cita' : 'Nueva Cita'}
+            </h3>
+            {editingId && (
+                <button 
+                    type="button" 
+                    onClick={handleCancelarEdicion}
+                    className="text-xs text-red-500 underline hover:text-red-700"
+                >
+                    Cancelar
+                </button>
+            )}
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             
             {/* 1. Selección de Paciente */}
@@ -213,7 +268,6 @@ const Agendar = () => {
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">4. Turno Disponible</label>
                 
-                {/* Estado Loading */}
                 {loadingTurnos && <p className="text-xs text-gray-500 animate-pulse">Buscando disponibilidad...</p>}
 
                 {/* Grid de Botones */}
@@ -226,7 +280,7 @@ const Agendar = () => {
                                 onClick={() => handleSeleccionarTurno(turno)}
                                 className={`text-xs py-2 px-1 rounded border transition font-medium
                                     ${formData.turnoId === turno.id 
-                                        ? 'bg-purple-600 text-white border-purple-600 shadow-md' 
+                                        ? (editingId ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-purple-600 text-white border-purple-600 shadow-md')
                                         : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:bg-purple-50'
                                     }`}
                             >
@@ -257,7 +311,7 @@ const Agendar = () => {
 
             {/* Resumen de Selección */}
             {turnoSeleccionadoObj && (
-                <div className="bg-purple-50 p-2 rounded border border-purple-100 text-sm text-purple-800">
+                <div className={`p-2 rounded border text-sm ${editingId ? 'bg-orange-50 border-orange-100 text-orange-800' : 'bg-purple-50 border-purple-100 text-purple-800'}`}>
                     <strong>Resumen:</strong> {turnoSeleccionadoObj.horaInicio} - {turnoSeleccionadoObj.horaFin}
                 </div>
             )}
@@ -280,10 +334,10 @@ const Agendar = () => {
                 disabled={!formData.turnoId}
                 className={`w-full font-bold py-2 px-4 rounded transition
                     ${formData.turnoId 
-                        ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg' 
+                        ? (editingId ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-lg' : 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg')
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
             >
-              Confirmar Agendamiento
+              {editingId ? 'Guardar Cambios' : 'Confirmar Agendamiento'}
             </button>
           </form>
         </div>
@@ -307,8 +361,12 @@ const Agendar = () => {
                 {citas.map((c) => (
                   <tr key={c.id} className="border-b hover:bg-gray-50 text-sm">
                     <td className="px-4 py-3">
+                      {/* USO DEL COMPONENTE TurnoDisplay PARA MOSTRAR HORA REAL */}
+                      <td className="px-4 py-3">
+                      {/* USO DEL COMPONENTE TurnoDisplay PARA MOSTRAR HORA REAL */}
                       <div className="font-bold">{c.turnoId}</div>
                       <div className="text-xs text-gray-500">{new Date(c.fechaCreacion).toLocaleDateString()}</div>
+                    </td>
                     </td>
                     <td className="px-4 py-3">{getNombrePaciente(c.pacienteId)}</td>
                     <td className="px-4 py-3">{c.medicoNombre}</td>
@@ -319,14 +377,25 @@ const Agendar = () => {
                         {c.estado}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 flex flex-col space-y-2">
                       {c.estado !== 'ANULADA' && (
-                        <button 
-                          onClick={() => handleAnular(c.id)}
-                          className="text-red-500 hover:text-red-700 font-semibold text-xs border border-red-200 px-2 py-1 rounded hover:bg-red-50"
-                        >
-                          Anular
-                        </button>
+                        <>
+                            {/* BOTÓN REPROGRAMAR */}
+                            <button 
+                                onClick={() => handleCargarReprogramacion(c)}
+                                className="text-blue-500 hover:text-blue-700 font-semibold text-xs border border-blue-200 px-2 py-1 rounded hover:bg-blue-50 text-center"
+                            >
+                                Reprogramar
+                            </button>
+                            
+                            {/* BOTÓN ANULAR */}
+                            <button 
+                                onClick={() => handleAnular(c.id)}
+                                className="text-red-500 hover:text-red-700 font-semibold text-xs border border-red-200 px-2 py-1 rounded hover:bg-red-50 text-center"
+                            >
+                                Anular
+                            </button>
+                        </>
                       )}
                     </td>
                   </tr>

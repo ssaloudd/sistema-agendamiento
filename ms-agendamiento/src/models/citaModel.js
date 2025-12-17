@@ -31,6 +31,10 @@ const Cita = sequelize.define('Cita', {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
     },
+    fechaCita: {  // <--- ESTE CAMPO ES EL IMPORTANTE
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     estado: {
         type: DataTypes.ENUM('PENDIENTE', 'CONFIRMADA', 'ANULADA', 'REALIZADA', 'AUSENTE'),
         defaultValue: 'PENDIENTE'

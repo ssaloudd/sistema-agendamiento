@@ -10,9 +10,9 @@ const CitaService = {
     },
 
     agendarCita: async (datos) => {
-        const { pacienteId, medicoId, medicoNombre, turnoId, motivoConsulta } = datos;
+        const { pacienteId, medicoId, medicoNombre, turnoId, motivoConsulta, fechaCita } = datos;
 
-        if (!pacienteId || !medicoId || !turnoId || !motivoConsulta) {
+        if (!pacienteId || !medicoId || !turnoId || !motivoConsulta || !fechaCita) {
             throw new Error("Faltan datos obligatorios");
         }
 
@@ -39,6 +39,7 @@ const CitaService = {
             medicoNombre,
             turnoId,
             motivoConsulta,
+            fechaCita,
             estado: 'PENDIENTE'
         });
 
@@ -75,7 +76,43 @@ const CitaService = {
         } catch (e) {}
 
         return cita;
-    }
+    },
+
+    reprogramarCita: async (id, nuevosDatos) => {
+        const { nuevoTurnoId, nuevaFecha } = nuevosDatos;
+        const cita = await CitaRepository.findById(id);
+        if (!cita) throw new Error("Cita no encontrada");
+
+        // 1. Lógica de Negocio: Validar que no sea la misma
+        if (cita.turnoId === nuevoTurnoId) throw new Error("El nuevo turno es igual al actual");
+
+        // 2. ORQUESTACIÓN (Crucial):
+        // A. Liberar turno anterior (Llamada a MS Médicos via Evento o REST)
+        // Por simplicidad y consistencia, emitiremos evento de "CitaReprogramada" 
+        // y dejaremos que MS Médicos maneje los cambios de estado de los turnos.
+        
+        // Actualizamos datos locales
+        const turnoAnteriorId = cita.turnoId;
+        cita.turnoId = nuevoTurnoId;
+        cita.fechaCita = nuevaFecha;
+        cita.estado = 'PENDIENTE'; // Vuelve a pendiente o confirmada
+        await cita.save();
+
+        // 3. Emitir Evento Complejo
+        try {
+            await axios.post('http://localhost:4005/events', {
+                tipo: 'CitaReprogramada',
+                datos: {
+                    citaId: cita.id,
+                    turnoAnteriorId: turnoAnteriorId,
+                    turnoNuevoId: nuevoTurnoId,
+                    pacienteId: cita.pacienteId
+                }
+            });
+        } catch (e) { console.log('Error Bus'); }
+
+        return cita;
+    },
 };
 
 module.exports = CitaService;

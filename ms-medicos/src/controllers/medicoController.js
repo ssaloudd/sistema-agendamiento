@@ -106,11 +106,20 @@ const MedicoController = {
                 } else {
                     console.log(">>> ADVERTENCIA: Evento CitaCreada sin turnoId");
                 }
-            }
-            // Si se anula, liberamos
-            else if (tipo === 'CitaAnulada') {
-                 // Aquí iría la lógica para liberar si tuvieras el turnoId
-                 console.log('Evento CitaAnulada recibido');
+            } else if (tipo === 'CitaAnulada') {
+                if (datos?.turnoId) {
+                    await MedicoService.liberarTurno(datos.turnoId);
+                    console.log(`>>> ÉXITO: Turno ${datos.turnoId} liberado`);
+                } else {
+                    console.log(">>> ADVERTENCIA: Evento CitaAnulada sin turnoId");
+                }
+            } else if (tipo === 'CitaReprogramada') {
+                const { turnoAnteriorId, turnoNuevoId } = datos;
+                if (turnoAnteriorId) await MedicoService.liberarTurno(turnoAnteriorId);
+                if (turnoNuevoId) await MedicoService.ocuparTurno(turnoNuevoId);
+                console.log(`Reprogramación: Turno ${turnoAnteriorId} liberado, Turno ${turnoNuevoId} ocupado.`);
+            } else {
+                console.log(`Evento no manejado: ${tipo}`);
             }
         } catch (error) {
             console.error("Error procesando evento en Medicos:", error.message);
